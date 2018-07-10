@@ -22,6 +22,12 @@ import (
 	"time"
 )
 
+/*
+Taken from Standard library golang 1.10 net package.
+Unmodified.
+Start.
+*/
+
 type sniffSig interface {
 	// match returns the MIME type of the data, or "" if unknown.
 	match(data []byte, firstNonWS int) string
@@ -530,24 +536,6 @@ func checkPreconditions(w http.ResponseWriter, r *http.Request, modtime time.Tim
 	return false, rangeHeader
 }
 
-//FileServer -- Copy from standard lib
-func FileServer(root http.FileSystem) http.Handler {
-	return &fileHandler{root}
-}
-
-type fileHandler struct {
-	root http.FileSystem
-}
-
-func (f *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	upath := r.URL.Path
-	if !strings.HasPrefix(upath, "/") {
-		upath = "/" + upath
-		r.URL.Path = upath
-	}
-	serveFile(w, r, f.root, path.Clean(upath), true)
-}
-
 // localRedirect gives a Moved Permanently response.
 // It does not convert relative paths to absolute paths like Redirect does.
 func localRedirect(w http.ResponseWriter, r *http.Request, newPath string) {
@@ -595,31 +583,6 @@ var htmlReplacer = strings.NewReplacer(
 	// "&#39;" is shorter than "&apos;" and apos was not in HTML until HTML5.
 	"'", "&#39;",
 )
-
-func dirList(w http.ResponseWriter, r *http.Request, f http.File) {
-	dirs, err := f.Readdir(-1)
-	if err != nil {
-		logf(r, "http: error reading directory: %v", err)
-		http.Error(w, "Error reading directory", http.StatusInternalServerError)
-		return
-	}
-	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	fmt.Fprintf(w, "<pre>\n")
-	for _, d := range dirs {
-		name := d.Name()
-		if d.IsDir() {
-			name += "/"
-		}
-		// name may contain '?' or '#', which must be escaped to remain
-		// part of the URL path, and not indicate the start of a query
-		// string or fragment.
-		url := url.URL{Path: name}
-		fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
-	}
-	fmt.Fprintf(w, "</pre>\n")
-}
 
 func serveFile(w http.ResponseWriter, r *http.Request, fs http.FileSystem, name string, redirect bool) {
 	const indexPage = "/index.html"
@@ -967,9 +930,6 @@ func mapDirOpenError(originalErr error, name string) error {
 }
 
 func (d dir) Open(name string) (http.File, error) {
-	fmt.Println("Start dir.Open")
-	defer fmt.Println("End dir.Open")
-
 	if filepath.Separator != '/' && strings.ContainsRune(name, filepath.Separator) {
 		return nil, errors.New("http: invalid character in file path")
 	}
@@ -977,9 +937,6 @@ func (d dir) Open(name string) (http.File, error) {
 	if dir == "" {
 		dir = "."
 	}
-
-	//testing
-	fmt.Printf("Name: %s\n", name)
 
 	fullName := filepath.Join(dir, filepath.FromSlash(path.Clean("/"+name)))
 	f, err := os.Open(fullName)
@@ -989,11 +946,96 @@ func (d dir) Open(name string) (http.File, error) {
 	return f, nil
 }
 
+/*
+Taken from standard library golang 1.10 net package.
+Unmodified.
+End.
+*/
+
+/*
+Taken from standard library golang 1.10 net package
+Modified.
+Start.
+*/
+
+//FileServer -- Copy from standard lib
+func FileServer(root http.FileSystem) http.Handler {
+	return &fileHandler{root}
+}
+
+type fileHandler struct {
+	root http.FileSystem
+}
+
+func (f *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	upath := r.URL.Path
+	fmt.Printf("Requested path: %s\n", upath)
+	if !strings.HasPrefix(upath, "/") {
+		upath = "/" + upath
+		r.URL.Path = upath
+	}
+
+	if !*showDotFiles {
+		pathParts := strings.Split(r.URL.Path, "/")
+		for _, part := range pathParts {
+			if strings.HasPrefix(part, ".") {
+				http.Error(w, "403 Forbidden", http.StatusForbidden)
+				return
+			}
+		}
+	}
+
+	serveFile(w, r, f.root, path.Clean(upath), true)
+}
+
+func dirList(w http.ResponseWriter, r *http.Request, f http.File) {
+	dirs, err := f.Readdir(-1)
+	if err != nil {
+		logf(r, "http: error reading directory: %v", err)
+		http.Error(w, "Error reading directory", http.StatusInternalServerError)
+		return
+	}
+	sort.Slice(dirs, func(i, j int) bool { return dirs[i].Name() < dirs[j].Name() })
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	fmt.Fprintf(w, "<pre>\n")
+	for _, d := range dirs {
+		name := d.Name()
+
+		//Added by Marcus
+		if !*showDotFiles && strings.HasPrefix(name, ".") {
+			continue
+		}
+
+		if d.IsDir() {
+			name += "/"
+		}
+		// name may contain '?' or '#', which must be escaped to remain
+		// part of the URL path, and not indicate the start of a query
+		// string or fragment.
+		url := url.URL{Path: name}
+		fmt.Fprintf(w, "<a href=\"%s\">%s</a>\n", url.String(), htmlReplacer.Replace(name))
+	}
+	fmt.Fprintf(w, "</pre>\n")
+}
+
+/*
+Taken from standard library golang 1.10 net package
+Modified.
+End.
+*/
+
+/*Rest of the source code*/
+
 var filePath = flag.String("directory", os.Getenv("HOME"), "File directory to be servered")
+var showDotFiles = flag.Bool("dotFiles", false, "Show dot files")
+var startingURLPath = flag.String("urlRoot", "/", "The starting url path for the server")
 
 func main() {
 	flag.Parse()
 	fmt.Printf("filepath: %v\n", *filePath)
-	http.Handle("/", FileServer(dir(*filePath)))
+	flag.VisitAll(func(f *flag.Flag) { fmt.Printf("flag: %s, Value: %v\n", f.Name, f.Value) })
+
+	http.Handle(*startingURLPath, FileServer(dir(*filePath)))
 	log.Fatal(http.ListenAndServe(":12345", nil))
 }

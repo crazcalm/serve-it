@@ -1027,7 +1027,7 @@ End.
 
 /*Rest of the source code*/
 
-var filePath = flag.String("directory", os.Getenv("HOME"), "File directory to be servered")
+var filePath = flag.String("directory", os.Getenv("HOME"), "File directory to be served")
 var showDotFiles = flag.Bool("dotFiles", false, "Show dot files")
 var port = flag.String("port", "12345", "That port that will be used")
 

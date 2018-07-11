@@ -1028,7 +1028,7 @@ End.
 /*Rest of the source code*/
 
 var filePath = flag.String("directory", os.Getenv("HOME"), "File directory to be served")
-var showDotFiles = flag.Bool("dotFiles", false, "Show dot files")
+var showDotFiles = flag.Bool("dotfiles", false, "Show dot files")
 var port = flag.String("port", "12345", "That port that will be used")
 
 func exitError(err error) {
@@ -1058,6 +1058,6 @@ func main() {
 	validPort(*port)
 
 	http.Handle("/", FileServer(dir(*filePath)))
-	fmt.Fprintf(os.Stdout, "Serving %s with dotfile %t on localhost:%s\n", *filePath, *showDotFiles, *port)
+	fmt.Fprintf(os.Stdout, "Serving %s with show dot files set to %t on localhost:%s\n", *filePath, *showDotFiles, *port)
 	log.Fatal(http.ListenAndServe(":"+*port, nil))
 }

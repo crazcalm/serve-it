@@ -1029,13 +1029,35 @@ End.
 
 var filePath = flag.String("directory", os.Getenv("HOME"), "File directory to be servered")
 var showDotFiles = flag.Bool("dotFiles", false, "Show dot files")
-var startingURLPath = flag.String("urlRoot", "/", "The starting url path for the server")
+var port = flag.String("port", "12345", "That port that will be used")
+
+func exitError(err error) {
+	fmt.Fprintf(os.Stderr, "%s\n", err.Error())
+	os.Exit(1)
+}
+
+func validPath(path string) {
+	_, err := os.Stat(path)
+	if err != nil {
+		exitError(fmt.Errorf("Could not validate path: %s", err.Error()))
+	}
+}
+
+func validPort(port string) {
+	_, err := strconv.Atoi(port)
+	if err != nil {
+		exitError(fmt.Errorf("Could not confirm that the passed in port was a number: %s", err.Error()))
+	}
+}
 
 func main() {
 	flag.Parse()
-	fmt.Printf("filepath: %v\n", *filePath)
-	flag.VisitAll(func(f *flag.Flag) { fmt.Printf("flag: %s, Value: %v\n", f.Name, f.Value) })
 
-	http.Handle(*startingURLPath, FileServer(dir(*filePath)))
-	log.Fatal(http.ListenAndServe(":12345", nil))
+	//Some validation
+	validPath(*filePath)
+	validPort(*port)
+
+	http.Handle("/", FileServer(dir(*filePath)))
+	fmt.Fprintf(os.Stdout, "Serving %s with dotfile %t on localhost:%s\n", *filePath, *showDotFiles, *port)
+	log.Fatal(http.ListenAndServe(":"+*port, nil))
 }

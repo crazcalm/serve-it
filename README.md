@@ -1,4 +1,6 @@
 # Serve-It
+[![Go Report Card](https://goreportcard.com/badge/github.com/crazcalm/serve-it)](https://goreportcard.com/report/github.com/crazcalm/serve-it)
+
 A command line application that allows you to run a file server on local host that hides dot files.
 
 ## Installation

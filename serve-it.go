@@ -975,6 +975,7 @@ func (f *fileHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.URL.Path = upath
 	}
 
+	//Added by Marcus
 	if !*showDotFiles {
 		pathParts := strings.Split(r.URL.Path, "/")
 		for _, part := range pathParts {
